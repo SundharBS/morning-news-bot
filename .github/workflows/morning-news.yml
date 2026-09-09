@@ -1,1 +1,28 @@
+name: 🌅 Morning News Briefing
 
+on:
+  schedule:
+    - cron: "0 7 * * *"
+      timezone: "Asia/Kolkata"
+
+  workflow_dispatch:
+
+jobs:
+  morning-news:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run news bot
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NEWS_TELEGRAM_BOT_TOKEN: ${{ secrets.NEWS_TELEGRAM_BOT_TOKEN }}
+          NEWS_TELEGRAM_CHAT_ID: ${{ secrets.NEWS_TELEGRAM_CHAT_ID }}
+        run: python news_bot.py
