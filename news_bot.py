@@ -20,7 +20,7 @@ TELEGRAM_CHAT_ID = os.environ["NEWS_TELEGRAM_CHAT_ID"]
 GEMINI_MODEL = "gemini-3.6-flash"
 
 MAX_STORIES_PER_FEED = 7
-MAX_STORIES_TO_GEMINI = 30
+MAX_STORIES_TO_GEMINI = 20
 
 FEEDS = [
 
@@ -344,7 +344,7 @@ IMPORTANT:
 - Do NOT invent facts.
 - Do NOT make up numbers.
 - Ignore duplicate stories.
-- Select the 8 to 10 most important stories.
+- Select ONLY the 8 to 10 most important stories.
 
 PRIORITY:
 
@@ -374,8 +374,8 @@ FORMAT:
 🌅 MORNING NEWS — {today}
 
 📰 Headline
-What happened: 1-2 simple sentences.
-Why it matters: 1 short sentence.
+What happened: ONE short sentence.
+Why it matters: ONE short sentence.
 Source: original article link
 
 Repeat for the selected stories.
@@ -388,7 +388,9 @@ At the end:
 • Important exam fact
 • Important exam fact
 
-Keep the complete response below 3500 characters.
+IMPORTANT: The complete response MUST be between 1800 and 2800 characters.
+Never exceed 2800 characters.
+Keep each story extremely concise.
 
 Preserve the supplied article links exactly.
 
@@ -525,12 +527,9 @@ def send_telegram(message):
 
     # Telegram maximum is 4096 characters.
     if len(message) > 3900:
-
-        message = (
-            message[:3890]
-            + "\n\n..."
-        )
-
+    raise RuntimeError(
+        f"Briefing is too long: {len(message)} characters"
+    )
     url = (
         "https://api.telegram.org/"
         f"bot{TELEGRAM_BOT_TOKEN}/sendMessage"
