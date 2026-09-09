@@ -10,7 +10,7 @@ from html import unescape
 
 
 # ============================================================
-# CONFIG
+# CONFIGURATION
 # ============================================================
 
 GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
@@ -19,62 +19,70 @@ TELEGRAM_CHAT_ID = os.environ["NEWS_TELEGRAM_CHAT_ID"]
 
 GEMINI_MODEL = "gemini-3.6-flash"
 
-MAX_STORIES_PER_FEED = 7
+MAX_STORIES_PER_FEED = 6
 MAX_STORIES_TO_GEMINI = 20
+
+TELEGRAM_MAX_LENGTH = 3900
+
+
+# ============================================================
+# NEWS SOURCES
+# ONLY BUSINESSLINE + ECONOMIC TIMES
+# ============================================================
 
 FEEDS = [
 
-    # ========================================================
+    # --------------------------------------------------------
     # THE HINDU BUSINESSLINE
-    # ========================================================
+    # --------------------------------------------------------
 
     (
         "BusinessLine",
-        "https://www.thehindubusinessline.com/news/feeder/default.rss",
+        "https://www.thehindubusinessline.com/news/feeder/default.rss"
     ),
 
     (
         "BusinessLine",
-        "https://www.thehindubusinessline.com/money-and-banking/feeder/default.rss",
+        "https://www.thehindubusinessline.com/money-and-banking/feeder/default.rss"
     ),
 
     (
         "BusinessLine",
-        "https://www.thehindubusinessline.com/economy/macro-economy/feeder/default.rss",
+        "https://www.thehindubusinessline.com/economy/macro-economy/feeder/default.rss"
     ),
 
     (
         "BusinessLine",
-        "https://www.thehindubusinessline.com/economy/feeder/default.rss",
+        "https://www.thehindubusinessline.com/economy/feeder/default.rss"
     ),
 
     (
         "BusinessLine",
-        "https://www.thehindubusinessline.com/markets/feeder/default.rss",
+        "https://www.thehindubusinessline.com/markets/feeder/default.rss"
     ),
 
-    # ========================================================
+    # --------------------------------------------------------
     # ECONOMIC TIMES
-    # ========================================================
+    # --------------------------------------------------------
 
     (
         "Economic Times",
-        "https://economictimes.indiatimes.com/rssfeedstopstories.cms",
+        "https://economictimes.indiatimes.com/rssfeedstopstories.cms"
     ),
 
     (
         "Economic Times",
-        "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms",
+        "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms"
     ),
 
     (
         "Economic Times",
-        "https://economictimes.indiatimes.com/news/economy/rssfeeds/1373380680.cms",
+        "https://economictimes.indiatimes.com/news/economy/rssfeeds/1373380680.cms"
     ),
 
     (
         "Economic Times",
-        "https://economictimes.indiatimes.com/industry/banking/finance/rssfeeds/13358259.cms",
+        "https://economictimes.indiatimes.com/industry/banking/finance/rssfeeds/13358259.cms"
     ),
 ]
 
@@ -84,16 +92,25 @@ FEEDS = [
 # ============================================================
 
 def clean_text(text):
+
     if not text:
         return ""
 
     text = unescape(text)
 
-    # Remove HTML
-    text = re.sub(r"<[^>]+>", " ", text)
+    # Remove HTML tags
+    text = re.sub(
+        r"<[^>]+>",
+        " ",
+        text
+    )
 
     # Remove excessive whitespace
-    text = re.sub(r"\s+", " ", text)
+    text = re.sub(
+        r"\s+",
+        " ",
+        text
+    )
 
     return text.strip()
 
@@ -107,7 +124,8 @@ def fetch_url(url):
     request = urllib.request.Request(
         url,
         headers={
-            "User-Agent": "Mozilla/5.0 MorningNewsBot/1.0"
+            "User-Agent":
+            "Mozilla/5.0 MorningNewsBot/1.0"
         }
     )
 
@@ -129,8 +147,13 @@ def parse_date(date_string):
         return None
 
     try:
-        return parsedate_to_datetime(date_string)
+
+        return parsedate_to_datetime(
+            date_string
+        )
+
     except Exception:
+
         return None
 
 
@@ -147,11 +170,15 @@ def fetch_feed(source, url):
 
         xml_data = fetch_url(url)
 
-        root = ET.fromstring(xml_data)
+        root = ET.fromstring(
+            xml_data
+        )
 
         stories = []
 
-        for item in root.findall(".//item"):
+        for item in root.findall(
+            ".//item"
+        ):
 
             title = clean_text(
                 item.findtext(
@@ -177,7 +204,9 @@ def fetch_feed(source, url):
                 default=""
             )
 
-            published = parse_date(pub_date)
+            published = parse_date(
+                pub_date
+            )
 
             if not title or not link:
                 continue
@@ -190,19 +219,25 @@ def fetch_feed(source, url):
                 "published": published
             })
 
-        print(f"Found {len(stories)} stories")
+        print(
+            f"Found {len(stories)} stories"
+        )
 
-        return stories[:MAX_STORIES_PER_FEED]
+        return stories[
+            :MAX_STORIES_PER_FEED
+        ]
 
     except Exception as e:
 
-        print(f"RSS ERROR: {e}")
+        print(
+            f"RSS ERROR: {e}"
+        )
 
         return []
 
 
 # ============================================================
-# COLLECT ALL NEWS
+# COLLECT NEWS
 # ============================================================
 
 def collect_news():
@@ -216,7 +251,9 @@ def collect_news():
             url
         )
 
-        all_stories.extend(stories)
+        all_stories.extend(
+            stories
+        )
 
     print(
         f"\nTotal RSS stories collected: "
@@ -224,7 +261,7 @@ def collect_news():
     )
 
     # --------------------------------------------------------
-    # Remove duplicates
+    # Remove duplicate headlines
     # --------------------------------------------------------
 
     unique = {}
@@ -238,9 +275,12 @@ def collect_news():
         )
 
         if key not in unique:
+
             unique[key] = story
 
-    stories = list(unique.values())
+    stories = list(
+        unique.values()
+    )
 
     # --------------------------------------------------------
     # Sort newest first
@@ -251,11 +291,13 @@ def collect_news():
         published = story["published"]
 
         if published is None:
+
             return datetime.min.replace(
                 tzinfo=timezone.utc
             )
 
         if published.tzinfo is None:
+
             published = published.replace(
                 tzinfo=timezone.utc
             )
@@ -268,7 +310,7 @@ def collect_news():
     )
 
     # --------------------------------------------------------
-    # Prefer last 30 hours
+    # Prefer news from the last 30 hours
     # --------------------------------------------------------
 
     cutoff = (
@@ -286,18 +328,27 @@ def collect_news():
             continue
 
         if published.tzinfo is None:
+
             published = published.replace(
                 tzinfo=timezone.utc
             )
 
         if published >= cutoff:
-            recent.append(story)
 
-    # If RSS dates are poor, use latest stories
-    if len(recent) < 10:
+            recent.append(
+                story
+            )
+
+    # If dates aren't useful,
+    # use the newest available stories.
+
+    if len(recent) < 8:
+
         recent = stories
 
-    recent = recent[:MAX_STORIES_TO_GEMINI]
+    recent = recent[
+        :MAX_STORIES_TO_GEMINI
+    ]
 
     print(
         f"Stories going to Gemini: "
@@ -313,63 +364,87 @@ def collect_news():
 
 def ask_gemini(stories):
 
-    print("\nSending ONE request to Gemini...")
+    print(
+        "\nSending ONE request to Gemini..."
+    )
 
     news_text = ""
 
-    for index, story in enumerate(stories, 1):
+    for index, story in enumerate(
+        stories,
+        1
+    ):
 
         news_text += (
             f"\n--- STORY {index} ---\n"
             f"Source: {story['source']}\n"
             f"Headline: {story['title']}\n"
-            f"Details: {story['description'][:600]}\n"
+            f"Details: "
+            f"{story['description'][:450]}\n"
             f"Link: {story['link']}\n"
         )
 
+    # --------------------------------------------------------
+    # Current date in IST
+    # --------------------------------------------------------
+
+    ist = timezone(
+        timedelta(
+            hours=5,
+            minutes=30
+        )
+    )
+
     today = datetime.now(
-        timezone(timedelta(hours=5, minutes=30))
-    ).strftime("%d %b %Y")
+        ist
+    ).strftime(
+        "%d %b %Y"
+    )
+
+    # --------------------------------------------------------
+    # PROMPT
+    # --------------------------------------------------------
 
     prompt = f"""
-You are preparing a concise morning current-affairs briefing
-for an Indian banking/PO exam aspirant.
+You are my personal morning current-affairs editor.
 
-Date: {today}
+I am preparing for Indian banking and PO exams.
 
-IMPORTANT:
+Today is {today}.
 
-- Use ONLY the supplied news stories.
-- Do NOT use outside information.
-- Do NOT invent facts.
-- Do NOT make up numbers.
-- Ignore duplicate stories.
-- Select ONLY the 8 to 10 most important stories.
+Use ONLY the supplied news stories.
+
+DO NOT:
+- use outside information
+- invent facts
+- invent numbers
+- add stories not supplied
+- repeat duplicate stories
+
+SELECT ONLY 6 TO 8 IMPORTANT STORIES.
 
 PRIORITY:
-
 1. RBI
-2. Banking and financial institutions
+2. Banking
 3. Monetary policy
 4. Inflation
-5. GDP and economic growth
+5. GDP
 6. Indian economy
 7. Government economic policy
 8. Financial markets
-9. Major Indian businesses
+9. Important Indian businesses
 10. Major global economic developments
-11. Important general awareness useful for banking exams
+11. Important banking-exam current affairs
 
 SKIP:
+- sports
+- entertainment
+- celebrities
+- lifestyle
+- trivial stories
+- minor local news
 
-- Sports
-- Entertainment
-- Celebrity news
-- Lifestyle
-- Minor local stories
-- Unimportant corporate announcements
-
-FORMAT:
+FORMAT EXACTLY LIKE THIS:
 
 🌅 MORNING NEWS — {today}
 
@@ -378,28 +453,38 @@ What happened: ONE short sentence.
 Why it matters: ONE short sentence.
 Source: original article link
 
-Repeat for the selected stories.
+Repeat for 6 to 8 stories.
 
-At the end:
+Then:
 
 🎯 TODAY'S MUST-KNOW
+• One important exam fact
+• One important exam fact
+• One important exam fact
 
-• Important exam fact
-• Important exam fact
-• Important exam fact
+VERY IMPORTANT LENGTH RULE:
 
-IMPORTANT: The complete response MUST be between 1800 and 2800 characters.
-Never exceed 2800 characters.
-Keep each story extremely concise.
+The COMPLETE response MUST be below 2500 characters.
 
-Preserve the supplied article links exactly.
+Aim for approximately 2000-2300 characters.
 
-SUPPLIED STORIES:
+Do NOT exceed 2500 characters.
+
+Keep sentences extremely short.
+
+Do not add an introduction or conclusion.
+
+Keep the original article links exactly as supplied.
+
+SUPPLIED NEWS:
 
 {news_text}
 """
 
-    # Google's documented REST generateContent endpoint.
+    # --------------------------------------------------------
+    # Gemini API
+    # --------------------------------------------------------
+
     url = (
         "https://generativelanguage.googleapis.com/"
         f"v1beta/models/{GEMINI_MODEL}:generateContent"
@@ -418,16 +503,21 @@ SUPPLIED STORIES:
         ],
         "generationConfig": {
             "temperature": 0.2,
-            "maxOutputTokens": 1800
+            "maxOutputTokens": 1400
         }
     }
 
     request = urllib.request.Request(
         url,
-        data=json.dumps(payload).encode("utf-8"),
+        data=json.dumps(
+            payload
+        ).encode("utf-8"),
         headers={
-            "Content-Type": "application/json",
-            "x-goog-api-key": GEMINI_API_KEY
+            "Content-Type":
+            "application/json",
+
+            "x-goog-api-key":
+            GEMINI_API_KEY
         },
         method="POST"
     )
@@ -439,23 +529,26 @@ SUPPLIED STORIES:
             timeout=90
         ) as response:
 
-            response_data = json.loads(
-                response.read().decode("utf-8")
+            data = json.loads(
+                response.read().decode(
+                    "utf-8"
+                )
             )
 
-        candidates = response_data.get(
+        candidates = data.get(
             "candidates",
             []
         )
 
         if not candidates:
+
             print(
                 "Gemini returned no candidates."
             )
 
             print(
                 json.dumps(
-                    response_data,
+                    data,
                     indent=2
                 )
             )
@@ -469,15 +562,9 @@ SUPPLIED STORIES:
         )
 
         if not parts:
-            print(
-                "Gemini response contained no text."
-            )
 
             print(
-                json.dumps(
-                    response_data,
-                    indent=2
-                )
+                "Gemini returned no text."
             )
 
             return None
@@ -488,7 +575,12 @@ SUPPLIED STORIES:
         ).strip()
 
         print(
-            "Gemini response received successfully."
+            "Gemini response received."
+        )
+
+        print(
+            f"Gemini response length: "
+            f"{len(text)} characters"
         )
 
         return text
@@ -518,21 +610,114 @@ SUPPLIED STORIES:
 
 
 # ============================================================
+# SAFELY SHORTEN A LONG GEMINI RESPONSE
+# ============================================================
+
+def fit_message(message):
+
+    if len(message) <= TELEGRAM_MAX_LENGTH:
+
+        return message
+
+    print(
+        f"Gemini response is too long: "
+        f"{len(message)} characters"
+    )
+
+    print(
+        "Shortening at story boundaries..."
+    )
+
+    # Split into blocks beginning with 📰
+    blocks = re.split(
+        r"(?=📰)",
+        message
+    )
+
+    result = ""
+
+    for block in blocks:
+
+        if not block.strip():
+            continue
+
+        candidate = (
+            result
+            + ("\n" if result else "")
+            + block.strip()
+        )
+
+        if len(candidate) > 3800:
+
+            break
+
+        result = candidate
+
+    # If the must-know section exists,
+    # try to preserve it.
+
+    must_know = ""
+
+    marker = "🎯 TODAY'S MUST-KNOW"
+
+    if marker in message:
+
+        must_know = message[
+            message.index(marker):
+        ].strip()
+
+    if must_know:
+
+        candidate = (
+            result
+            + "\n\n"
+            + must_know
+        )
+
+        if len(candidate) <= 3900:
+
+            result = candidate
+
+    # Final safety check.
+    # This should almost never be needed.
+
+    if len(result) > 3900:
+
+        result = result[:3900]
+
+        # Remove incomplete final line.
+        if "\n" in result:
+
+            result = result[
+                :result.rfind("\n")
+            ]
+
+    return result.strip()
+
+
+# ============================================================
 # TELEGRAM
 # ============================================================
 
 def send_telegram(message):
 
-    print("\nSending Telegram message...")
-
-    # Telegram maximum is 4096 characters.
-    if len(message) > 3900:
-    raise RuntimeError(
-        f"Briefing is too long: {len(message)} characters"
+    print(
+        "\nSending ONE Telegram message..."
     )
+
+    message = fit_message(
+        message
+    )
+
+    print(
+        f"Final Telegram length: "
+        f"{len(message)} characters"
+    )
+
     url = (
         "https://api.telegram.org/"
-        f"bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        f"bot{TELEGRAM_BOT_TOKEN}"
+        "/sendMessage"
     )
 
     payload = {
@@ -543,9 +728,12 @@ def send_telegram(message):
 
     request = urllib.request.Request(
         url,
-        data=json.dumps(payload).encode("utf-8"),
+        data=json.dumps(
+            payload
+        ).encode("utf-8"),
         headers={
-            "Content-Type": "application/json"
+            "Content-Type":
+            "application/json"
         },
         method="POST"
     )
@@ -558,7 +746,9 @@ def send_telegram(message):
         ) as response:
 
             result = json.loads(
-                response.read().decode("utf-8")
+                response.read().decode(
+                    "utf-8"
+                )
             )
 
         if result.get("ok"):
@@ -612,25 +802,38 @@ def send_telegram(message):
 
 def create_fallback(stories):
 
+    ist = timezone(
+        timedelta(
+            hours=5,
+            minutes=30
+        )
+    )
+
     today = datetime.now(
-        timezone(timedelta(hours=5, minutes=30))
-    ).strftime("%d %b %Y")
+        ist
+    ).strftime(
+        "%d %b %Y"
+    )
 
     message = (
         f"🌅 MORNING NEWS — {today}\n\n"
-        "Gemini summary was unavailable.\n\n"
-        "Latest headlines:\n\n"
+        "Gemini summary unavailable.\n\n"
     )
 
-    for story in stories[:8]:
+    for story in stories[:7]:
 
-        message += (
+        block = (
             f"📰 {story['title']}\n"
-            f"{story['source']}\n"
+            f"Source: {story['source']}\n"
             f"{story['link']}\n\n"
         )
 
-    return message
+        if len(message + block) > 3800:
+            break
+
+        message += block
+
+    return message.strip()
 
 
 # ============================================================
@@ -644,21 +847,19 @@ def main():
     print("=" * 60)
 
     # --------------------------------------------------------
-    # 1. Get news
+    # STEP 1 — Collect news
     # --------------------------------------------------------
 
     stories = collect_news()
 
     if not stories:
 
-        print(
-            "\nNo RSS stories were collected."
+        raise RuntimeError(
+            "No RSS stories were collected."
         )
 
-        return
-
     # --------------------------------------------------------
-    # 2. ONE Gemini request
+    # STEP 2 — ONE Gemini request
     # --------------------------------------------------------
 
     briefing = ask_gemini(
@@ -666,7 +867,7 @@ def main():
     )
 
     # --------------------------------------------------------
-    # 3. Fallback if Gemini fails
+    # STEP 3 — Fallback if Gemini fails
     # --------------------------------------------------------
 
     if not briefing:
@@ -684,14 +885,14 @@ def main():
         )
 
     # --------------------------------------------------------
-    # 4. ONE Telegram message
+    # STEP 4 — ONE Telegram message
     # --------------------------------------------------------
 
-    telegram_success = send_telegram(
+    success = send_telegram(
         briefing
     )
 
-    if not telegram_success:
+    if not success:
 
         raise RuntimeError(
             "Telegram message could not be sent."
@@ -707,4 +908,5 @@ def main():
 # ============================================================
 
 if __name__ == "__main__":
+
     main()
