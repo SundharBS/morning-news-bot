@@ -10,7 +10,7 @@ from html import unescape
 
 
 # ============================================================
-# CONFIGURATION
+# CONFIG
 # ============================================================
 
 GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
@@ -21,13 +21,12 @@ GEMINI_MODEL = "gemini-3.6-flash"
 
 MAX_STORIES_PER_FEED = 6
 MAX_STORIES_TO_GEMINI = 20
-
-TELEGRAM_MAX_LENGTH = 3900
+TELEGRAM_LIMIT = 3900
 
 
 # ============================================================
 # NEWS SOURCES
-# ONLY BUSINESSLINE + ECONOMIC TIMES
+# ONLY THE HINDU BUSINESSLINE + ECONOMIC TIMES
 # ============================================================
 
 FEEDS = [
@@ -37,27 +36,27 @@ FEEDS = [
     # --------------------------------------------------------
 
     (
-        "BusinessLine",
+        "The Hindu BusinessLine",
         "https://www.thehindubusinessline.com/news/feeder/default.rss"
     ),
 
     (
-        "BusinessLine",
+        "The Hindu BusinessLine",
         "https://www.thehindubusinessline.com/money-and-banking/feeder/default.rss"
     ),
 
     (
-        "BusinessLine",
+        "The Hindu BusinessLine",
         "https://www.thehindubusinessline.com/economy/macro-economy/feeder/default.rss"
     ),
 
     (
-        "BusinessLine",
+        "The Hindu BusinessLine",
         "https://www.thehindubusinessline.com/economy/feeder/default.rss"
     ),
 
     (
-        "BusinessLine",
+        "The Hindu BusinessLine",
         "https://www.thehindubusinessline.com/markets/feeder/default.rss"
     ),
 
@@ -88,7 +87,7 @@ FEEDS = [
 
 
 # ============================================================
-# TEXT CLEANING
+# HELPERS
 # ============================================================
 
 def clean_text(text):
@@ -105,7 +104,7 @@ def clean_text(text):
         text
     )
 
-    # Remove excessive whitespace
+    # Remove excessive spaces
     text = re.sub(
         r"\s+",
         " ",
@@ -114,10 +113,6 @@ def clean_text(text):
 
     return text.strip()
 
-
-# ============================================================
-# FETCH URL
-# ============================================================
 
 def fetch_url(url):
 
@@ -137,10 +132,6 @@ def fetch_url(url):
         return response.read()
 
 
-# ============================================================
-# PARSE DATE
-# ============================================================
-
 def parse_date(date_string):
 
     if not date_string:
@@ -158,13 +149,12 @@ def parse_date(date_string):
 
 
 # ============================================================
-# FETCH RSS FEED
+# RSS READER
 # ============================================================
 
 def fetch_feed(source, url):
 
     print(f"\nFetching: {source}")
-    print(url)
 
     try:
 
@@ -288,21 +278,21 @@ def collect_news():
 
     def sort_key(story):
 
-        published = story["published"]
+        date = story["published"]
 
-        if published is None:
+        if date is None:
 
             return datetime.min.replace(
                 tzinfo=timezone.utc
             )
 
-        if published.tzinfo is None:
+        if date.tzinfo is None:
 
-            published = published.replace(
+            date = date.replace(
                 tzinfo=timezone.utc
             )
 
-        return published
+        return date
 
     stories.sort(
         key=sort_key,
@@ -322,25 +312,25 @@ def collect_news():
 
     for story in stories:
 
-        published = story["published"]
+        date = story["published"]
 
-        if published is None:
+        if date is None:
             continue
 
-        if published.tzinfo is None:
+        if date.tzinfo is None:
 
-            published = published.replace(
+            date = date.replace(
                 tzinfo=timezone.utc
             )
 
-        if published >= cutoff:
+        if date >= cutoff:
 
             recent.append(
                 story
             )
 
-    # If dates aren't useful,
-    # use the newest available stories.
+    # If too few recent stories,
+    # use the latest available stories.
 
     if len(recent) < 8:
 
@@ -379,13 +369,12 @@ def ask_gemini(stories):
             f"\n--- STORY {index} ---\n"
             f"Source: {story['source']}\n"
             f"Headline: {story['title']}\n"
-            f"Details: "
-            f"{story['description'][:450]}\n"
-            f"Link: {story['link']}\n"
+            f"Article details: "
+            f"{story['description'][:750]}\n"
         )
 
     # --------------------------------------------------------
-    # Current date in IST
+    # Indian Standard Time
     # --------------------------------------------------------
 
     ist = timezone(
@@ -406,83 +395,182 @@ def ask_gemini(stories):
     # --------------------------------------------------------
 
     prompt = f"""
-You are my personal morning current-affairs editor.
+You are my personal DAILY CURRENT AFFAIRS EDITOR.
 
-I am preparing for Indian banking and PO exams.
+I want to become broadly aware of important current affairs.
+
+I am also preparing for Indian banking/PO exams, but this is
+NOT a banking-only briefing.
 
 Today is {today}.
 
-Use ONLY the supplied news stories.
+You have news from ONLY:
+- The Hindu BusinessLine
+- Economic Times
+
+Use ONLY the supplied news items.
 
 DO NOT:
 - use outside information
 - invent facts
 - invent numbers
-- add stories not supplied
-- repeat duplicate stories
+- invent statistics
+- invent dates
+- repeat the same event
+- include a story that was not supplied
 
-SELECT ONLY 6 TO 8 IMPORTANT STORIES.
+============================================================
+WHAT TO SELECT
+============================================================
 
-PRIORITY:
-1. RBI
-2. Banking
-3. Monetary policy
-4. Inflation
-5. GDP
-6. Indian economy
-7. Government economic policy
-8. Financial markets
-9. Important Indian businesses
-10. Major global economic developments
-11. Important banking-exam current affairs
+Select the 6-8 MOST IMPORTANT developments of the day.
 
-SKIP:
-- sports
-- entertainment
-- celebrities
-- lifestyle
-- trivial stories
-- minor local news
+Do NOT force every category into the briefing.
 
-FORMAT EXACTLY LIKE THIS:
+Choose stories based on actual importance.
 
-🌅 MORNING NEWS — {today}
+Consider ALL of these areas:
 
-📰 Headline
-What happened: ONE short sentence.
-Why it matters: ONE short sentence.
-Source: original article link
+🇮🇳 India
+🌍 World / geopolitics
+💰 Economy / business / markets
+🏦 Banking / RBI / financial policy
+🤖 Technology / AI
+🚀 Science / space
+🏛️ Government / policy / courts
+🌱 Environment / climate
+🏅 Major sports and major international events
+📚 Other important general-awareness developments
 
-Repeat for 6 to 8 stories.
+A major geopolitical event is more important than a minor
+banking announcement.
 
-Then:
+A major scientific breakthrough is more important than a
+routine corporate announcement.
+
+A major Indian government decision is more important than
+a minor market movement.
+
+Use your judgement.
+
+============================================================
+NUMBERS ARE IMPORTANT
+============================================================
+
+Whenever the supplied article contains meaningful numbers,
+PRESERVE THEM.
+
+Examples:
+
+- ₹ crore / ₹ lakh crore
+- $ billion / $ million
+- percentages
+- interest rates
+- GDP growth
+- inflation
+- unemployment
+- oil prices
+- market levels
+- number of countries
+- number of people affected
+- dates
+- targets
+- election numbers
+- production figures
+- investment amounts
+- trade figures
+
+Include important numbers in the "What happened" section.
+
+DO NOT invent or estimate numbers.
+
+Do not overload a story with unnecessary figures.
+
+============================================================
+EXPLANATION IS THE MAIN PURPOSE
+============================================================
+
+For every selected story, explain:
+
+1. WHAT HAPPENED
+2. WHY IT MATTERS
+
+The reader should understand the event without opening
+the newspaper.
+
+Do NOT merely rewrite the headline.
+
+============================================================
+OUTPUT FORMAT
+============================================================
+
+Start with:
+
+🌅 MORNING CURRENT AFFAIRS
+{today}
+
+Then use:
+
+📰 [Headline]
+
+What happened: [2 clear sentences explaining the event.
+Include important numbers/names/dates when relevant.]
+
+Why it matters: [1 clear sentence explaining significance.]
+
+Source: Economic Times
+
+OR
+
+Source: The Hindu BusinessLine
+
+Then the next story.
+
+At the end:
 
 🎯 TODAY'S MUST-KNOW
-• One important exam fact
-• One important exam fact
-• One important exam fact
 
-VERY IMPORTANT LENGTH RULE:
+• [Important fact]
+• [Important fact]
+• [Important fact]
 
-The COMPLETE response MUST be below 2500 characters.
+============================================================
+IMPORTANT OUTPUT RULES
+============================================================
 
-Aim for approximately 2000-2300 characters.
+- DO NOT include article URLs.
+- DO NOT include hyperlinks.
+- DO NOT write any URL.
+- Only write the publication name as the source.
+- The summary is more important than the headline.
+- Use simple language.
+- Explain acronyms when necessary.
+- Keep important numbers.
+- Do not make every story about banking.
+- Do not force categories.
+- No introduction before the first story.
+- No conclusion after Must-Know.
 
-Do NOT exceed 2500 characters.
+============================================================
+LENGTH
+============================================================
 
-Keep sentences extremely short.
+Keep the complete response between approximately
+2400 and 3000 characters.
 
-Do not add an introduction or conclusion.
+NEVER exceed 3200 characters.
 
-Keep the original article links exactly as supplied.
+Aim for 6-8 strong stories rather than many weak stories.
 
-SUPPLIED NEWS:
+============================================================
+SUPPLIED NEWS
+============================================================
 
 {news_text}
 """
 
     # --------------------------------------------------------
-    # Gemini API
+    # GEMINI API
     # --------------------------------------------------------
 
     url = (
@@ -502,8 +590,7 @@ SUPPLIED NEWS:
             }
         ],
         "generationConfig": {
-            "temperature": 0.2,
-            "maxOutputTokens": 1400
+            "maxOutputTokens": 1800
         }
     }
 
@@ -610,25 +697,43 @@ SUPPLIED NEWS:
 
 
 # ============================================================
-# SAFELY SHORTEN A LONG GEMINI RESPONSE
+# TELEGRAM MESSAGE PREPARATION
 # ============================================================
 
-def fit_message(message):
+def prepare_message(message):
 
-    if len(message) <= TELEGRAM_MAX_LENGTH:
+    # Remove URLs if Gemini accidentally includes them.
+
+    message = re.sub(
+        r"https?://\S+",
+        "",
+        message
+    )
+
+    # Clean spaces before line breaks.
+
+    message = re.sub(
+        r"[ \t]+\n",
+        "\n",
+        message
+    )
+
+    message = message.strip()
+
+    # --------------------------------------------------------
+    # Keep message below Telegram's limit.
+    # Cut only at story boundaries.
+    # --------------------------------------------------------
+
+    if len(message) <= TELEGRAM_LIMIT:
 
         return message
 
     print(
-        f"Gemini response is too long: "
+        f"Message too long: "
         f"{len(message)} characters"
     )
 
-    print(
-        "Shortening at story boundaries..."
-    )
-
-    # Split into blocks beginning with 📰
     blocks = re.split(
         r"(?=📰)",
         message
@@ -636,35 +741,33 @@ def fit_message(message):
 
     result = ""
 
+    must_know = ""
+
     for block in blocks:
 
-        if not block.strip():
+        block = block.strip()
+
+        if not block:
+            continue
+
+        if block.startswith(
+            "🎯 TODAY'S MUST-KNOW"
+        ):
+
+            must_know = block
             continue
 
         candidate = (
             result
-            + ("\n" if result else "")
-            + block.strip()
+            + ("\n\n" if result else "")
+            + block
         )
 
-        if len(candidate) > 3800:
+        if len(candidate) > 3300:
 
             break
 
         result = candidate
-
-    # If the must-know section exists,
-    # try to preserve it.
-
-    must_know = ""
-
-    marker = "🎯 TODAY'S MUST-KNOW"
-
-    if marker in message:
-
-        must_know = message[
-            message.index(marker):
-        ].strip()
 
     if must_know:
 
@@ -674,23 +777,9 @@ def fit_message(message):
             + must_know
         )
 
-        if len(candidate) <= 3900:
+        if len(candidate) <= 3800:
 
             result = candidate
-
-    # Final safety check.
-    # This should almost never be needed.
-
-    if len(result) > 3900:
-
-        result = result[:3900]
-
-        # Remove incomplete final line.
-        if "\n" in result:
-
-            result = result[
-                :result.rfind("\n")
-            ]
 
     return result.strip()
 
@@ -705,12 +794,12 @@ def send_telegram(message):
         "\nSending ONE Telegram message..."
     )
 
-    message = fit_message(
+    message = prepare_message(
         message
     )
 
     print(
-        f"Final Telegram length: "
+        f"Final message length: "
         f"{len(message)} characters"
     )
 
@@ -760,7 +849,7 @@ def send_telegram(message):
             return True
 
         print(
-            "Telegram returned an error:"
+            "Telegram error:"
         )
 
         print(
@@ -816,19 +905,24 @@ def create_fallback(stories):
     )
 
     message = (
-        f"🌅 MORNING NEWS — {today}\n\n"
+        f"🌅 MORNING CURRENT AFFAIRS\n"
+        f"{today}\n\n"
         "Gemini summary unavailable.\n\n"
     )
 
-    for story in stories[:7]:
+    for story in stories[:6]:
 
         block = (
-            f"📰 {story['title']}\n"
-            f"Source: {story['source']}\n"
-            f"{story['link']}\n\n"
+            f"📰 {story['title']}\n\n"
+            f"What happened: "
+            f"{story['description'][:350]}\n\n"
+            f"Source: {story['source']}\n\n"
         )
 
-        if len(message + block) > 3800:
+        if len(
+            message + block
+        ) > 3600:
+
             break
 
         message += block
@@ -843,11 +937,11 @@ def create_fallback(stories):
 def main():
 
     print("=" * 60)
-    print("🌅 MORNING NEWS BOT")
+    print("🌅 MORNING CURRENT AFFAIRS BOT")
     print("=" * 60)
 
     # --------------------------------------------------------
-    # STEP 1 — Collect news
+    # 1. Collect news
     # --------------------------------------------------------
 
     stories = collect_news()
@@ -859,7 +953,7 @@ def main():
         )
 
     # --------------------------------------------------------
-    # STEP 2 — ONE Gemini request
+    # 2. ONE Gemini request
     # --------------------------------------------------------
 
     briefing = ask_gemini(
@@ -867,7 +961,7 @@ def main():
     )
 
     # --------------------------------------------------------
-    # STEP 3 — Fallback if Gemini fails
+    # 3. Fallback if Gemini fails
     # --------------------------------------------------------
 
     if not briefing:
@@ -885,7 +979,7 @@ def main():
         )
 
     # --------------------------------------------------------
-    # STEP 4 — ONE Telegram message
+    # 4. ONE Telegram message
     # --------------------------------------------------------
 
     success = send_telegram(
@@ -899,7 +993,7 @@ def main():
         )
 
     print("\n" + "=" * 60)
-    print("✅ MORNING NEWS BOT FINISHED")
+    print("✅ MORNING CURRENT AFFAIRS BOT FINISHED")
     print("=" * 60)
 
 
