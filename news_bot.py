@@ -313,7 +313,7 @@ Here are today's supplied stories:
 
     url = (
         "https://generativelanguage.googleapis.com/"
-        f"v1beta/models/{GEMINI_MODEL}:generateContent"
+        f"v1/models/{GEMINI_MODEL}:generateContent"
     )
 
     payload = {
@@ -363,12 +363,14 @@ Here are today's supplied stories:
 
         return text.strip()
 
-    except Exception as e:
+except urllib.error.HTTPError as e:
+    error_body = e.read().decode("utf-8", errors="replace")
+    print(f"Gemini HTTP ERROR {e.code}: {error_body}")
+    return None
 
-        print(f"Gemini ERROR: {e}")
-
-        return None
-
+except Exception as e:
+    print(f"Gemini ERROR: {e}")
+    return None
 
 # ============================================================
 # TELEGRAM
@@ -419,10 +421,14 @@ def send_telegram(message):
         else:
             print("Telegram ERROR:", result)
 
-    except Exception as e:
-        print(f"Telegram ERROR: {e}")
-        raise
+    except urllib.error.HTTPError as e:
+    error_body = e.read().decode("utf-8", errors="replace")
+    print(f"Telegram HTTP ERROR {e.code}: {error_body}")
+    raise
 
+except Exception as e:
+    print(f"Telegram ERROR: {e}")
+    raise
 
 # ============================================================
 # MAIN
