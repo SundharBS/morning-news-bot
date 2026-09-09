@@ -1,6 +1,6 @@
 name: 🌅 Morning News Briefing
 
-on:
+"on":
   schedule:
     - cron: "0 7 * * *"
       timezone: "Asia/Kolkata"
