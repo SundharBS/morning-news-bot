@@ -19,9 +19,10 @@ TELEGRAM_CHAT_ID = os.environ["NEWS_TELEGRAM_CHAT_ID"]
 
 GEMINI_MODEL = "gemini-3.6-flash"
 
-MAX_STORIES_PER_FEED = 6
-MAX_STORIES_TO_GEMINI = 20
-TELEGRAM_LIMIT = 3900
+MAX_STORIES_PER_FEED = 7
+MAX_STORIES_TO_GEMINI = 24
+
+TELEGRAM_LIMIT = 4096
 
 
 # ============================================================
@@ -31,9 +32,7 @@ TELEGRAM_LIMIT = 3900
 
 FEEDS = [
 
-    # --------------------------------------------------------
-    # THE HINDU BUSINESSLINE
-    # --------------------------------------------------------
+    # ---------------- BUSINESSLINE ----------------
 
     (
         "The Hindu BusinessLine",
@@ -60,9 +59,7 @@ FEEDS = [
         "https://www.thehindubusinessline.com/markets/feeder/default.rss"
     ),
 
-    # --------------------------------------------------------
-    # ECONOMIC TIMES
-    # --------------------------------------------------------
+    # ---------------- ECONOMIC TIMES ----------------
 
     (
         "Economic Times",
@@ -97,14 +94,12 @@ def clean_text(text):
 
     text = unescape(text)
 
-    # Remove HTML tags
     text = re.sub(
         r"<[^>]+>",
         " ",
         text
     )
 
-    # Remove excessive spaces
     text = re.sub(
         r"\s+",
         " ",
@@ -149,7 +144,7 @@ def parse_date(date_string):
 
 
 # ============================================================
-# RSS READER
+# RSS FEED
 # ============================================================
 
 def fetch_feed(source, url):
@@ -246,7 +241,7 @@ def collect_news():
         )
 
     print(
-        f"\nTotal RSS stories collected: "
+        f"\nTotal stories collected: "
         f"{len(all_stories)}"
     )
 
@@ -300,7 +295,7 @@ def collect_news():
     )
 
     # --------------------------------------------------------
-    # Prefer news from the last 30 hours
+    # Prefer last 30 hours
     # --------------------------------------------------------
 
     cutoff = (
@@ -329,10 +324,7 @@ def collect_news():
                 story
             )
 
-    # If too few recent stories,
-    # use the latest available stories.
-
-    if len(recent) < 8:
+    if len(recent) < 10:
 
         recent = stories
 
@@ -369,12 +361,11 @@ def ask_gemini(stories):
             f"\n--- STORY {index} ---\n"
             f"Source: {story['source']}\n"
             f"Headline: {story['title']}\n"
-            f"Article details: "
-            f"{story['description'][:750]}\n"
+            f"Details: {story['description'][:800]}\n"
         )
 
     # --------------------------------------------------------
-    # Indian Standard Time
+    # IST
     # --------------------------------------------------------
 
     ist = timezone(
@@ -395,41 +386,36 @@ def ask_gemini(stories):
     # --------------------------------------------------------
 
     prompt = f"""
-You are my personal DAILY CURRENT AFFAIRS EDITOR.
+You are my personal morning CURRENT AFFAIRS EDITOR.
 
-I want to become broadly aware of important current affairs.
+I want to be broadly aware of the most important things
+happening in India and around the world.
 
-I am also preparing for Indian banking/PO exams, but this is
-NOT a banking-only briefing.
+I am also preparing for banking/PO exams, but this is NOT
+a banking-only briefing.
 
-Today is {today}.
+Today: {today}
 
-You have news from ONLY:
-- The Hindu BusinessLine
-- Economic Times
+SOURCE LIMIT:
 
-Use ONLY the supplied news items.
+Use ONLY the supplied stories from:
 
-DO NOT:
-- use outside information
-- invent facts
-- invent numbers
-- invent statistics
-- invent dates
-- repeat the same event
-- include a story that was not supplied
+1. The Hindu BusinessLine
+2. Economic Times
+
+Do NOT use outside knowledge.
+
+Do NOT invent facts, numbers, dates or statistics.
 
 ============================================================
-WHAT TO SELECT
+SELECT THE MOST IMPORTANT NEWS
 ============================================================
 
-Select the 6-8 MOST IMPORTANT developments of the day.
+Choose 8 to 10 genuinely important stories.
 
-Do NOT force every category into the briefing.
+Do NOT force every category to appear.
 
-Choose stories based on actual importance.
-
-Consider ALL of these areas:
+Consider importance across:
 
 🇮🇳 India
 🌍 World / geopolitics
@@ -439,84 +425,86 @@ Consider ALL of these areas:
 🚀 Science / space
 🏛️ Government / policy / courts
 🌱 Environment / climate
-🏅 Major sports and major international events
-📚 Other important general-awareness developments
+🏅 Major sports
+📚 Other major general-awareness developments
 
-A major geopolitical event is more important than a minor
+A major world event is more important than a routine
 banking announcement.
 
-A major scientific breakthrough is more important than a
-routine corporate announcement.
+A major scientific development is more important than a
+minor corporate announcement.
 
 A major Indian government decision is more important than
-a minor market movement.
+a small market movement.
 
-Use your judgement.
+Use judgement.
 
 ============================================================
-NUMBERS ARE IMPORTANT
+NUMBERS AND DATA
 ============================================================
 
-Whenever the supplied article contains meaningful numbers,
-PRESERVE THEM.
+Numbers are IMPORTANT.
+
+Whenever the supplied article contains meaningful data,
+include it in the summary.
 
 Examples:
 
-- ₹ crore / ₹ lakh crore
-- $ billion / $ million
-- percentages
-- interest rates
-- GDP growth
-- inflation
-- unemployment
-- oil prices
-- market levels
-- number of countries
-- number of people affected
-- dates
-- targets
-- election numbers
-- production figures
-- investment amounts
-- trade figures
+₹ crore
+₹ lakh crore
+$ billion
+percentages
+interest rates
+GDP growth
+inflation
+oil prices
+stock-market levels
+number of countries
+number of people
+investment amounts
+trade figures
+targets
+dates
+production figures
 
-Include important numbers in the "What happened" section.
+Preserve important numbers exactly as provided.
 
-DO NOT invent or estimate numbers.
-
-Do not overload a story with unnecessary figures.
+NEVER invent or estimate numbers.
 
 ============================================================
-EXPLANATION IS THE MAIN PURPOSE
+EXPLAIN THE NEWS
 ============================================================
 
-For every selected story, explain:
-
-1. WHAT HAPPENED
-2. WHY IT MATTERS
-
-The reader should understand the event without opening
+The reader should understand the story without opening
 the newspaper.
 
-Do NOT merely rewrite the headline.
+DO NOT merely rewrite the headline.
+
+For each story provide:
+
+What happened:
+2-3 clear sentences explaining the actual event.
+Include important names, numbers, dates and facts.
+
+Why it matters:
+1 clear sentence explaining the significance.
 
 ============================================================
 OUTPUT FORMAT
 ============================================================
 
-Start with:
+Start:
 
 🌅 MORNING CURRENT AFFAIRS
 {today}
 
-Then use:
+Then:
 
 📰 [Headline]
 
-What happened: [2 clear sentences explaining the event.
-Include important numbers/names/dates when relevant.]
+What happened: [2-3 useful sentences.]
 
-Why it matters: [1 clear sentence explaining significance.]
+Why it matters: [1 useful sentence.]
 
 Source: Economic Times
 
@@ -524,7 +512,7 @@ OR
 
 Source: The Hindu BusinessLine
 
-Then the next story.
+Then continue with the next story.
 
 At the end:
 
@@ -535,35 +523,54 @@ At the end:
 • [Important fact]
 
 ============================================================
-IMPORTANT OUTPUT RULES
+IMPORTANT
 ============================================================
 
-- DO NOT include article URLs.
-- DO NOT include hyperlinks.
-- DO NOT write any URL.
-- Only write the publication name as the source.
-- The summary is more important than the headline.
-- Use simple language.
-- Explain acronyms when necessary.
-- Keep important numbers.
-- Do not make every story about banking.
-- Do not force categories.
-- No introduction before the first story.
-- No conclusion after Must-Know.
+DO NOT include article URLs.
+
+DO NOT include hyperlinks.
+
+DO NOT include raw links.
+
+Only write:
+
+Source: Economic Times
+
+or:
+
+Source: The Hindu BusinessLine
+
+The space saved from removing URLs MUST be used for
+better explanations and useful data.
+
+Do not waste characters on introductions.
+
+Do not waste characters on conclusions.
+
+Use simple language.
+
+Avoid unnecessary repetition.
 
 ============================================================
 LENGTH
 ============================================================
 
-Keep the complete response between approximately
-2400 and 3000 characters.
+This is VERY IMPORTANT.
 
-NEVER exceed 3200 characters.
+Telegram allows approximately 4096 characters.
 
-Aim for 6-8 strong stories rather than many weak stories.
+Aim for approximately 3500-3800 characters.
+
+DO NOT exceed 3800 characters.
+
+Do NOT make the briefing artificially short.
+
+Give the reader useful explanations.
+
+8-10 strong stories are preferred.
 
 ============================================================
-SUPPLIED NEWS
+SUPPLIED STORIES
 ============================================================
 
 {news_text}
@@ -590,7 +597,7 @@ SUPPLIED NEWS
             }
         ],
         "generationConfig": {
-            "maxOutputTokens": 1800
+            "maxOutputTokens": 2200
         }
     }
 
@@ -697,12 +704,14 @@ SUPPLIED NEWS
 
 
 # ============================================================
-# TELEGRAM MESSAGE PREPARATION
+# PREPARE TELEGRAM MESSAGE
 # ============================================================
 
 def prepare_message(message):
 
-    # Remove URLs if Gemini accidentally includes them.
+    # --------------------------------------------------------
+    # Remove accidental URLs.
+    # --------------------------------------------------------
 
     message = re.sub(
         r"https?://\S+",
@@ -710,7 +719,9 @@ def prepare_message(message):
         message
     )
 
-    # Clean spaces before line breaks.
+    # --------------------------------------------------------
+    # Clean whitespace.
+    # --------------------------------------------------------
 
     message = re.sub(
         r"[ \t]+\n",
@@ -721,11 +732,10 @@ def prepare_message(message):
     message = message.strip()
 
     # --------------------------------------------------------
-    # Keep message below Telegram's limit.
-    # Cut only at story boundaries.
+    # If already within limit, send it.
     # --------------------------------------------------------
 
-    if len(message) <= TELEGRAM_LIMIT:
+    if len(message) <= 3900:
 
         return message
 
@@ -733,6 +743,14 @@ def prepare_message(message):
         f"Message too long: "
         f"{len(message)} characters"
     )
+
+    print(
+        "Reducing at complete story boundaries..."
+    )
+
+    # --------------------------------------------------------
+    # Split at headlines.
+    # --------------------------------------------------------
 
     blocks = re.split(
         r"(?=📰)",
@@ -750,11 +768,14 @@ def prepare_message(message):
         if not block:
             continue
 
+        # Keep Must-Know separately.
+
         if block.startswith(
             "🎯 TODAY'S MUST-KNOW"
         ):
 
             must_know = block
+
             continue
 
         candidate = (
@@ -763,11 +784,17 @@ def prepare_message(message):
             + block
         )
 
-        if len(candidate) > 3300:
+        # Keep a safe margin.
+
+        if len(candidate) > 3600:
 
             break
 
         result = candidate
+
+    # --------------------------------------------------------
+    # Add Must-Know if it fits.
+    # --------------------------------------------------------
 
     if must_know:
 
@@ -777,7 +804,7 @@ def prepare_message(message):
             + must_know
         )
 
-        if len(candidate) <= 3800:
+        if len(candidate) <= 3900:
 
             result = candidate
 
@@ -849,7 +876,7 @@ def send_telegram(message):
             return True
 
         print(
-            "Telegram error:"
+            "Telegram returned an error:"
         )
 
         print(
@@ -910,18 +937,18 @@ def create_fallback(stories):
         "Gemini summary unavailable.\n\n"
     )
 
-    for story in stories[:6]:
+    for story in stories[:8]:
 
         block = (
             f"📰 {story['title']}\n\n"
             f"What happened: "
-            f"{story['description'][:350]}\n\n"
+            f"{story['description'][:450]}\n\n"
             f"Source: {story['source']}\n\n"
         )
 
         if len(
             message + block
-        ) > 3600:
+        ) > 3700:
 
             break
 
@@ -961,7 +988,7 @@ def main():
     )
 
     # --------------------------------------------------------
-    # 3. Fallback if Gemini fails
+    # 3. Fallback
     # --------------------------------------------------------
 
     if not briefing:
